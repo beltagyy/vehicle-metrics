@@ -1,0 +1,13 @@
+aws_region           = "us-east-1"
+project_name         = "vehicle-metrics"
+vpc_cidr             = "10.0.0.0/16"
+kubernetes_version   = "1.28"
+node_instance_type   = "t3.medium"
+node_desired_size    = 1
+node_max_size        = 3
+node_min_size        = 1
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+db_multi_az          = false
+redis_node_type      = "cache.t3.micro"
+redis_num_nodes      = 1
