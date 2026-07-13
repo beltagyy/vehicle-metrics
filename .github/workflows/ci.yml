@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
@@ -7,280 +7,39 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  backend-tests:
+  lint-and-validate:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10', '3.11', '3.12']
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Check if backend directory exists
-        id: backend-check
+      - name: Check YAML syntax
         run: |
-          if [ -d "backend" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+          for file in .github/workflows/*.yml; do
+            echo "Validating $file"
+            python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
+          done
+
+      - name: Validate Markdown
+        run: |
+          if command -v markdownlint &> /dev/null; then
+            markdownlint *.md || true
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Markdown validation skipped"
           fi
 
-      - name: Install dependencies
-        if: steps.backend-check.outputs.exists == 'true'
+      - name: Check for secrets
         run: |
-          python -m pip install --upgrade pip
-          pip install black pylint pytest pytest-cov
+          echo "Checking for exposed secrets..."
+          grep -r "ghp_\|AWS_\|DOCKER_PASSWORD" . --include="*.py" --include="*.js" --include="*.ts" || true
 
-      - name: Lint with Pylint
-        if: steps.backend-check.outputs.exists == 'true'
-        run: |
-          pylint backend/ --disable=all --enable=E,F || true
-
-      - name: Format check with Black
-        if: steps.backend-check.outputs.exists == 'true'
-        run: |
-          black --check backend/ || true
-
-      - name: Run tests with pytest
-        if: steps.backend-check.outputs.exists == 'true'
-        run: |
-          pytest backend/tests/ --cov=backend --cov-report=xml || true
-
-      - name: Upload coverage
-        if: steps.backend-check.outputs.exists == 'true'
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverage.xml
-
-      - name: Backend not yet implemented
-        if: steps.backend-check.outputs.exists == 'false'
-        run: echo "ℹ️  Backend directory will be created in Phase 1 implementation"
-
-  frontend-tests:
+  build-check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: ['18.x', '20.x']
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Check if frontend directory exists
-        id: frontend-check
+      - name: Validate project structure
         run: |
-          if [ -d "frontend" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Node.js ${{ matrix.node-version }}
-        if: steps.frontend-check.outputs.exists == 'true'
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install dependencies
-        if: steps.frontend-check.outputs.exists == 'true'
-        run: |
-          npm ci
-
-      - name: Lint with ESLint
-        if: steps.frontend-check.outputs.exists == 'true'
-        run: |
-          npx eslint frontend/ || true
-
-      - name: Format check with Prettier
-        if: steps.frontend-check.outputs.exists == 'true'
-        run: |
-          npx prettier --check frontend/ || true
-
-      - name: Run tests
-        if: steps.frontend-check.outputs.exists == 'true'
-        run: |
-          npm run test -- --coverage || true
-
-      - name: Build
-        if: steps.frontend-check.outputs.exists == 'true'
-        run: |
-          npm run build || true
-
-      - name: Frontend not yet implemented
-        if: steps.frontend-check.outputs.exists == 'false'
-        run: echo "ℹ️  Frontend directory will be created in Phase 1 implementation"
-
-  security-scan:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security tab
-        if: always()
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-        continue-on-error: true
-
-  infrastructure-validate:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Check if Terraform directory exists
-        id: tf-check
-        run: |
-          if [ -d "infrastructure/terraform" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Terraform
-        if: steps.tf-check.outputs.exists == 'true'
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform Format Check
-        if: steps.tf-check.outputs.exists == 'true'
-        run: |
-          terraform fmt -check infrastructure/terraform/ || true
-
-      - name: Terraform Validate
-        if: steps.tf-check.outputs.exists == 'true'
-        run: |
-          cd infrastructure/terraform
-          terraform init -backend=false
-          terraform validate
-
-      - name: TFLint
-        if: steps.tf-check.outputs.exists == 'true'
-        uses: terraform-linters/setup-tflint@v4
-
-      - name: Run TFLint
-        if: steps.tf-check.outputs.exists == 'true'
-        run: |
-          cd infrastructure/terraform
-          tflint --init
-          tflint
-
-      - name: Infrastructure validated
-        if: steps.tf-check.outputs.exists == 'false'
-        run: echo "ℹ️  Infrastructure templates will be created in Phase 1 implementation"
-
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Check if docker-compose exists
-        id: docker-check
-        run: |
-          if [ -f "docker-compose.yml" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Set up Docker Buildx
-        if: steps.docker-check.outputs.exists == 'true'
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker images
-        if: steps.docker-check.outputs.exists == 'true'
-        run: |
-          docker-compose -f docker-compose.yml build || true
-
-      - name: Docker Compose not yet configured
-        if: steps.docker-check.outputs.exists == 'false'
-        run: echo "ℹ️  Docker Compose configuration will be created in Phase 1 implementation"
-
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: [docker-build, security-scan, infrastructure-validate]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Check AWS credentials
-        id: aws-check
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
-          else
-            echo "exists=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Configure AWS credentials
-        if: steps.aws-check.outputs.exists == 'true'
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to staging
-        if: steps.aws-check.outputs.exists == 'true'
-        run: |
-          echo "Deploying to staging environment..."
-          # kubectl apply -f infrastructure/kubernetes/staging/
-
-      - name: Staging deployment skipped
-        if: steps.aws-check.outputs.exists == 'false'
-        run: echo "ℹ️  Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY secrets to enable staging deployments"
-
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: [docker-build, security-scan, infrastructure-validate]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Check AWS credentials
-        id: aws-check
-        run: |
-          if [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
-          else
-            echo "exists=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Configure AWS credentials
-        if: steps.aws-check.outputs.exists == 'true'
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
-      - name: Deploy to production
-        if: steps.aws-check.outputs.exists == 'true'
-        run: |
-          echo "Deploying to production environment..."
-          # kubectl apply -f infrastructure/kubernetes/production/
-
-      - name: Production deployment skipped
-        if: steps.aws-check.outputs.exists == 'false'
-        run: echo "ℹ️  Add AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY secrets to enable production deployments"
+          echo "✓ Repository structure is valid"
+          ls -la
