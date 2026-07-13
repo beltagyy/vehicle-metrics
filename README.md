@@ -5,7 +5,7 @@
 
 A cloud-native, real-time analytics platform for autonomous vehicle sensor data processing, anomaly detection, and predictive intelligence.
 
-## 🏗️ System Architecture
+## 🏗️ System Architecture:
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
