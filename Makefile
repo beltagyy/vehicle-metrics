@@ -1,15 +1,17 @@
-.PHONY: help setup dev test lint clean logs stop
+.PHONY: help setup dev stop logs test lint clean backend-install backend-run
 
 help:
 	@echo "VehicleMetrics - Available Commands"
 	@echo "===================================="
-	@echo "  make setup      - Setup development environment"
-	@echo "  make dev        - Start local stack"
-	@echo "  make stop       - Stop all services"
-	@echo "  make logs       - View service logs"
-	@echo "  make test       - Run tests"
-	@echo "  make lint       - Run linters"
-	@echo "  make clean      - Clean up volumes"
+	@echo "  make setup           - Setup development environment"
+	@echo "  make dev             - Start local stack"
+	@echo "  make stop            - Stop all services"
+	@echo "  make logs            - View service logs"
+	@echo "  make test            - Run tests"
+	@echo "  make lint            - Run linters"
+	@echo "  make clean           - Clean up volumes"
+	@echo "  make backend-install - Install backend dependencies"
+	@echo "  make backend-run     - Run backend locally"
 
 setup:
 	@echo "Setting up environment..."
@@ -18,6 +20,7 @@ setup:
 	@echo "Waiting for services..."
 	@sleep 5
 	@echo "✓ Services running:"
+	@echo "  API:        http://localhost:8000/docs"
 	@echo "  PostgreSQL: localhost:5432"
 	@echo "  Redis:      localhost:6379"
 	@echo "  Grafana:    http://localhost:3001"
@@ -46,3 +49,9 @@ lint:
 clean:
 	docker-compose down -v
 	@echo "✓ Volumes removed"
+
+backend-install:
+	cd backend && pip install -r requirements.txt
+
+backend-run:
+	cd backend && uvicorn app.main:app --reload
