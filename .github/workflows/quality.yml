@@ -1,24 +1,57 @@
-name: Code Quality
+name: Quality
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   markdown-lint:
+    name: Markdown Lint
     runs-on: ubuntu-latest
-    continue-on-error: true
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Lint markdown files
+      - name: Check markdown quality
         run: |
-          echo "Checking markdown documentation..."
           for file in *.md; do
-            if [ -f "$file" ]; then
-              echo "✓ Found: $file"
-            fi
+            echo "Checking $file"
+            # Check for broken links (basic)
+            grep -oP '\[.*?\]\((.*?)\)' "$file" | grep -oP '\(.*?\)' | tr -d '()' | while read -r link; do
+              case "$link" in
+                http*|mailto*) ;;
+                *) test -f "$link" || echo "⚠ Broken link in $file: $link" ;;
+              esac
+            done
           done
+          echo "✓ Markdown checks complete"
+
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose
+        run: |
+          docker compose config --quiet
+          echo "✓ docker-compose.yml is valid"
+
+  terraform-fmt:
+    name: Terraform Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6"
+
+      - name: Check formatting
+        run: |
+          terraform fmt -check -recursive infrastructure/terraform/ || {
+            echo "Run 'terraform fmt -recursive infrastructure/terraform/' to fix"
+            exit 1
+          }
+          echo "✓ Terraform formatting OK"

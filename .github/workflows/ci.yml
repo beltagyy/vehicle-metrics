@@ -2,44 +2,80 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
-  lint-and-validate:
+  validate:
+    name: Validate
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Check YAML syntax
+      - name: Validate YAML
         run: |
-          for file in .github/workflows/*.yml; do
+          pip install pyyaml
+          for file in .github/workflows/*.yml infrastructure/kubernetes/*.yaml; do
             echo "Validating $file"
             python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
           done
 
       - name: Validate Markdown
         run: |
-          if command -v markdownlint &> /dev/null; then
-            markdownlint *.md || true
-          else
-            echo "Markdown validation skipped"
-          fi
+          for file in *.md; do
+            echo "Checking $file"
+            test -s "$file" || exit 1
+          done
 
-      - name: Check for secrets
+      - name: Check project structure
         run: |
-          echo "Checking for exposed secrets..."
-          grep -r "ghp_\|AWS_\|DOCKER_PASSWORD" . --include="*.py" --include="*.js" --include="*.ts" || true
+          test -f docker-compose.yml
+          test -f Makefile
+          test -f .env.example
+          test -d infrastructure/terraform
+          echo "✓ Project structure valid"
 
-  build-check:
+  terraform:
+    name: Terraform
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Validate project structure
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6"
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive infrastructure/terraform/
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: infrastructure/terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: infrastructure/terraform
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
         run: |
-          echo "✓ Repository structure is valid"
-          ls -la
+          echo "Scanning for hardcoded secrets..."
+          ! grep -rn "password\s*=" --include="*.yml" --include="*.yaml" --include="*.tf" . || {
+            echo "⚠ Found potential hardcoded passwords"
+            exit 1
+          }
+          echo "✓ No hardcoded secrets found"
+
+      - name: Validate .env not committed
+        run: |
+          ! git ls-files | grep -q "^\.env$$" || {
+            echo "⚠ .env file is tracked by git"
+            exit 1
+          }
+          echo "✓ .env not in git"
