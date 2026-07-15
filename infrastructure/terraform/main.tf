@@ -25,9 +25,9 @@ resource "aws_vpc" "main" {
 
 # EKS Cluster
 resource "aws_eks_cluster" "main" {
-  name            = "${var.project_name}-cluster"
-  role_arn        = aws_iam_role.eks_cluster_role.arn
-  version         = var.kubernetes_version
+  name     = "${var.project_name}-cluster"
+  role_arn = aws_iam_role.eks_cluster_role.arn
+  version  = var.kubernetes_version
   vpc_config {
     subnet_ids = aws_subnet.private[*].id
   }
@@ -64,10 +64,10 @@ resource "aws_eks_node_group" "main" {
 
 # RDS PostgreSQL
 resource "aws_db_instance" "main" {
-  identifier     = "${var.project_name}-db"
-  engine         = "postgres"
-  engine_version = "14.10"
-  instance_class = var.db_instance_class
+  identifier        = "${var.project_name}-db"
+  engine            = "postgres"
+  engine_version    = "14.10"
+  instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage
 
   db_name  = "vehiclemetrics"
@@ -108,7 +108,7 @@ resource "aws_s3_bucket" "processed_data" {
 resource "aws_elasticache_cluster" "main" {
   cluster_id           = "${var.project_name}-cache"
   engine               = "redis"
-  node_type           = var.redis_node_type
+  node_type            = var.redis_node_type
   num_cache_nodes      = var.redis_num_nodes
   parameter_group_name = "default.redis7"
   port                 = 6379
