@@ -9,3 +9,6 @@ build/
 *.tfstate*
 .terraform/
 .DS_Store
+
+# Environment files
+.env
