@@ -105,3 +105,19 @@ MIT License - See [LICENSE](LICENSE)
 ---
 
 **Status:** 🚀 Ready to Launch | **Next:** Create GitHub Project & Issues
+
+## 🔒 Security Vision
+
+We treat security as a first-class product requirement. Goals:
+
+- Never commit secrets: use environment files (.env), Docker secrets, or a secrets manager; exclude secrets from version control.
+- Secure defaults: enable TLS, minimize exposed ports, and apply least-privilege service accounts and RBAC.
+- Continuous hygiene: run automated dependency and image scanning, and CI checks for leaked credentials.
+- Incident readiness: rotate any exposed credentials immediately and follow documented response steps.
+
+### Known Issues
+
+| # | Issue | Status |
+|---|-------|--------|
+| [#8](https://github.com/beltagyy/vehicle-metrics/issues/8) | Hardcoded credentials in `docker-compose.yml` (`POSTGRES_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`) | Open |
+
