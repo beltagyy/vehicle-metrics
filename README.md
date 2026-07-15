@@ -46,9 +46,34 @@ A cloud-native, real-time analytics platform for autonomous vehicle sensor data 
 docker-compose up -d
 
 # Access services
+# API:        http://localhost:8000/docs
 # PostgreSQL: localhost:5432
-# Grafana: http://localhost:3001
-# MinIO: http://localhost:9001
+# Redis:      localhost:6379
+# Grafana:    http://localhost:3001
+# Prometheus: http://localhost:9090
+```
+
+## 🔧 Backend API
+
+FastAPI-based REST API for sensor data ingestion and retrieval.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | App info |
+| GET | `/health` | Health check (PostgreSQL + Redis) |
+| POST | `/sensors/` | Create sensor reading |
+| GET | `/sensors/` | List readings (filter by `vehicle_id`) |
+| GET | `/sensors/{id}` | Get single reading |
+
+### Run Locally (without Docker)
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
 ```
 
 ## 📈 Project Phases
@@ -119,5 +144,5 @@ We treat security as a first-class product requirement. Goals:
 
 | # | Issue | Status |
 |---|-------|--------|
-| [#8](https://github.com/beltagyy/vehicle-metrics/issues/8) | Hardcoded credentials in `docker-compose.yml` (`POSTGRES_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`) | Open |
+| [#8](https://github.com/beltagyy/vehicle-metrics/issues/8) | Hardcoded credentials in `docker-compose.yml` (`POSTGRES_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD`) | Fixed in #11 |
 
