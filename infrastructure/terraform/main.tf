@@ -87,23 +87,6 @@ resource "aws_db_instance" "main" {
   }
 }
 
-# S3 Buckets
-resource "aws_s3_bucket" "raw_data" {
-  bucket = "${var.project_name}-raw-data-${data.aws_caller_identity.current.account_id}"
-
-  tags = {
-    Name = "${var.project_name}-raw-data"
-  }
-}
-
-resource "aws_s3_bucket" "processed_data" {
-  bucket = "${var.project_name}-processed-data-${data.aws_caller_identity.current.account_id}"
-
-  tags = {
-    Name = "${var.project_name}-processed-data"
-  }
-}
-
 # Redis
 resource "aws_elasticache_cluster" "main" {
   cluster_id           = "${var.project_name}-cache"
@@ -147,4 +130,12 @@ output "rds_password" {
 
 output "redis_endpoint" {
   value = aws_elasticache_cluster.main.cache_nodes[0].address
+}
+
+output "raw_data_bucket" {
+  value = aws_s3_bucket.raw_data.id
+}
+
+output "processed_data_bucket" {
+  value = aws_s3_bucket.processed_data.id
 }
