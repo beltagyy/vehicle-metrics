@@ -99,4 +99,4 @@ Love VehicleMetrics? Here's how you can help:
 
 **Thank you for making VehicleMetrics better! 🚗✨**
 
-Last updated: 2024-07-13
+Last updated: 2026-07-20
