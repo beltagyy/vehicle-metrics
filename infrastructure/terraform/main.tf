@@ -62,17 +62,46 @@ resource "aws_eks_node_group" "main" {
   }
 }
 
-# RDS PostgreSQL
+# RDS PostgreSQL + TimescaleDB
+resource "aws_db_parameter_group" "main" {
+  family = "postgres14"
+  name   = "${var.project_name}-db-params"
+
+  parameter {
+    name  = "shared_preload_libraries"
+    value = "timescaledb,pg_stat_statements"
+  }
+
+  parameter {
+    name  = "log_min_duration_statement"
+    value = "1000"
+  }
+
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
+  }
+
+  tags = {
+    Name = "${var.project_name}-db-params"
+  }
+}
+
 resource "aws_db_instance" "main" {
   identifier        = "${var.project_name}-db"
   engine            = "postgres"
   engine_version    = "14.10"
   instance_class    = var.db_instance_class
   allocated_storage = var.db_allocated_storage
+  storage_type      = "gp3"
+  storage_encrypted = true
 
   db_name  = "vehiclemetrics"
   username = "admin"
   password = random_password.db_password.result
+
+  db_parameter_group_name = aws_db_parameter_group.main.name
 
   backup_retention_period = 30
   backup_window           = "03:00-04:00"
@@ -81,6 +110,8 @@ resource "aws_db_instance" "main" {
 
   skip_final_snapshot       = false
   final_snapshot_identifier = "${var.project_name}-db-final-snapshot"
+
+  performance_insights_enabled = true
 
   tags = {
     Name = "${var.project_name}-db"
